@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
     # GitHub
     github_webhook_secret: str = ""
-    github_app_id: str = ""
+    github_token: str = ""
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"
