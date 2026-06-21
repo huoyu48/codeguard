@@ -8,7 +8,7 @@ class KnowledgeBase:
         self.embedder = embedding_functions.DefaultEmbeddingFunction()
         self.collection = self.client.get_or_create_collection(
             name="coding_standards",
-            embedding_function=self.embedder,
+            embedding_function=self.embedder,  # type: ignore
         )
     def load_documents(self,file_path:str):
         """加载编码规范文档到数据库"""
@@ -28,5 +28,5 @@ class KnowledgeBase:
         results = self.collection.query(
             query_texts=[query], n_results=top_k
         )
-        return results["documents"][0]
+        return results["documents"][0]  # type: ignore
                             
