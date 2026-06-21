@@ -7,6 +7,7 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
     "langchain>=0.3",
+    "langchain-text-splitters>=0.3",
     "langchain-openai>=0.3",
     "langgraph>=0.2",
     "celery[redis]>=5.4",

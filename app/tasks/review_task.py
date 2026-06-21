@@ -10,9 +10,9 @@ from app.tasks.celery_app import celery_app
 def process_review(self, repo_owner: str, repo_name: str, pr_number: int):
     """异步执行代码审查"""
     try:
-        #1.获取PRdiff
-        #2.吊用Agent Pipeline
-        #3.回写审查评论到GitHub
+        # 1. 获取 PR diff
+        # 2. 调用 Agent Pipeline
+        # 3. 回写审查评论到 GitHub
         pass
     except Exception as exc:
         #指数退避重试 10s->20s->40s
