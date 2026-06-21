@@ -10,7 +10,10 @@ settings = get_settings()
 @tool
 def check_docstrings(code: str) -> str:
     """检查代码中缺少 docstring 的公共函数和类。当需要评估代码文档完整性时使用。"""
-    tree = ast.parse(code)
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as e:
+        return f"代码存在语法错误（{e}），无法检查 docstring"
     missing = []
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
@@ -24,7 +27,10 @@ def check_docstrings(code: str) -> str:
 @tool
 def check_naming_conventions(code: str) -> str:
     """检查变量和函数命名是否符合 Python 规范（snake_case）。当需要评估代码命名规范时使用。"""
-    tree = ast.parse(code)
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return "代码存在语法错误，无法检查命名规范"
     issues = []
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef):
