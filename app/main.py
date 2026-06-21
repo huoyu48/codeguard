@@ -1,8 +1,11 @@
 """CodeGuard - AI 代码审查自动化平台"""
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from app.config import get_settings
 from app.api.webhook import router as webhook_router
+from app.api.review import router as review_router
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -23,6 +26,13 @@ app.add_middleware(
 )
 
 app.include_router(webhook_router)
+app.include_router(review_router)
+
+
+@app.get("/")
+async def index():
+    """Web UI 入口"""
+    return FileResponse(Path(__file__).parent / "static" / "index.html")
 
 
 @app.get("/health")

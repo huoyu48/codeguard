@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CodeGuard - AI 代码审查</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0d1117; color: #c9d1d9; min-height: 100vh;
+    }
+    .header {
+      background: #161b22; border-bottom: 1px solid #30363d;
+      padding: 16px 32px; display: flex; align-items: center; gap: 12px;
+    }
+    .header h1 { font-size: 20px; color: #f0f6fc; }
+    .header span { font-size: 13px; color: #8b949e; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+    .input-section { margin-bottom: 24px; }
+    .input-section label {
+      display: block; font-size: 14px; font-weight: 600;
+      color: #f0f6fc; margin-bottom: 8px;
+    }
+    textarea {
+      width: 100%; height: 300px; background: #0d1117;
+      border: 1px solid #30363d; border-radius: 8px; padding: 16px;
+      color: #c9d1d9; font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 13px; line-height: 1.6; resize: vertical;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { outline: none; border-color: #58a6ff; }
+    textarea::placeholder { color: #484f58; }
+    .btn-row { display: flex; gap: 12px; align-items: center; }
+    .btn {
+      padding: 10px 24px; border-radius: 8px; font-size: 14px;
+      font-weight: 600; cursor: pointer; border: none;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: #238636; color: #fff;
+    }
+    .btn-primary:hover { background: #2ea043; }
+    .btn-primary:disabled {
+      background: #21262d; color: #484f58; cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: #21262d; color: #c9d1d9; border: 1px solid #30363d;
+    }
+    .btn-secondary:hover { background: #30363d; }
+    .status { font-size: 13px; color: #8b949e; }
+    .results { display: none; margin-top: 32px; }
+    .results.show { display: block; }
+    .result-grid {
+      display: grid; grid-template-columns: 1fr;
+      gap: 16px;
+    }
+    .result-card {
+      background: #161b22; border: 1px solid #30363d;
+      border-radius: 8px; overflow: hidden;
+    }
+    .result-card-header {
+      padding: 12px 16px; border-bottom: 1px solid #30363d;
+      display: flex; align-items: center; gap: 8px;
+      font-size: 14px; font-weight: 600; color: #f0f6fc;
+    }
+    .result-card-body {
+      padding: 16px; font-size: 13px; line-height: 1.8;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .result-card-body pre {
+      background: #0d1117; border: 1px solid #30363d;
+      border-radius: 6px; padding: 12px; overflow-x: auto;
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 12px;
+    }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 12px;
+      font-size: 11px; font-weight: 600;
+    }
+    .badge-blue { background: #1f3a5f; color: #58a6ff; }
+    .badge-red { background: #5f1f1f; color: #f85149; }
+    .badge-green { background: #1f5f2e; color: #3fb950; }
+    .loading {
+      display: none; text-align: center; padding: 48px;
+    }
+    .loading.show { display: block; }
+    .spinner {
+      width: 32px; height: 32px; border: 3px solid #30363d;
+      border-top-color: #58a6ff; border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-box {
+      display: none; background: #3d1418; border: 1px solid #f85149;
+      border-radius: 8px; padding: 16px; margin-top: 16px;
+      color: #f85149; font-size: 14px;
+    }
+    .error-box.show { display: block; }
+    .summary {
+      background: #161b22; border: 1px solid #30363d;
+      border-radius: 8px; padding: 16px; margin-bottom: 16px;
+      display: flex; gap: 24px; font-size: 14px;
+    }
+    .summary-item { display: flex; align-items: center; gap: 6px; }
+    .sample-btn {
+      font-size: 12px; color: #58a6ff; cursor: pointer;
+      background: none; border: none; text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🤖 CodeGuard</h1>
+    <span>AI 代码审查平台</span>
+  </div>
+
+  <div class="container">
+    <div class="input-section">
+      <label>
+        粘贴代码或 diff 内容
+        <button class="sample-btn" onclick="loadSample()">（加载示例代码）</button>
+      </label>
+      <textarea id="codeInput" placeholder="在这里粘贴你要审查的代码...&#10;&#10;支持 Python 代码片段或 git diff 格式"></textarea>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="reviewBtn" onclick="startReview()">开始审查</button>
+      <button class="btn btn-secondary" onclick="clearAll()">清空</button>
+      <span class="status" id="statusText"></span>
+    </div>
+
+    <div class="error-box" id="errorBox"></div>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>三个 Agent 正在并行审查代码，请稍候...</p>
+      <p style="font-size: 12px; color: #484f58; margin-top: 8px;">通常需要 10-30 秒</p>
+    </div>
+
+    <div class="results" id="results">
+      <div class="summary" id="summary"></div>
+      <div class="result-grid">
+        <div class="result-card">
+          <div class="result-card-header">📝 代码质量 <span class="badge badge-blue">code_reviewer</span></div>
+          <div class="result-card-body" id="codeResult"></div>
+        </div>
+        <div class="result-card">
+          <div class="result-card-header">🔒 安全审查 <span class="badge badge-red">security_scanner</span></div>
+          <div class="result-card-body" id="securityResult"></div>
+        </div>
+        <div class="result-card">
+          <div class="result-card-header">📖 文档与可读性 <span class="badge badge-green">doc_reviewer</span></div>
+          <div class="result-card-body" id="docResult"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SAMPLE_CODE = `def process_user_input(user_data):
+    name = user_data['name']
+    # SQL 字符串拼接 - 注入风险
+    query = f"SELECT * FROM users WHERE name = '{name}'"
+    result = os.system(f"echo {name}")
+    return query
+
+class DataProcessor:
+    def process(self, data):
+        results = []
+        for item in data:
+            if item['type'] == 'important':
+                results.append(item['value'] * 2)
+            elif item['type'] == 'normal':
+                results.append(item['value'])
+        return results
+
+def CalculateTotal(items):
+    total = 0
+    for i in items:
+        total += i
+    return total`;
+
+    function loadSample() {
+      document.getElementById('codeInput').value = SAMPLE_CODE;
+    }
+
+    function clearAll() {
+      document.getElementById('codeInput').value = '';
+      document.getElementById('results').classList.remove('show');
+      document.getElementById('errorBox').classList.remove('show');
+      document.getElementById('statusText').textContent = '';
+    }
+
+    async function startReview() {
+      const code = document.getElementById('codeInput').value.trim();
+      if (!code) { showError('请先粘贴代码再点审查'); return; }
+
+      const btn = document.getElementById('reviewBtn');
+      const loading = document.getElementById('loading');
+      const results = document.getElementById('results');
+      const errorBox = document.getElementById('errorBox');
+      const status = document.getElementById('statusText');
+
+      btn.disabled = true;
+      loading.classList.add('show');
+      results.classList.remove('show');
+      errorBox.classList.remove('show');
+      status.textContent = '审查中...';
+
+      try {
+        const resp = await fetch('/api/review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json();
+          throw new Error(err.detail || `HTTP ${resp.status}`);
+        }
+
+        const data = await resp.json();
+        document.getElementById('codeResult').textContent = data.code_review || '无输出';
+        document.getElementById('securityResult').textContent = data.security_review || '无输出';
+        document.getElementById('docResult').textContent = data.doc_review || '无输出';
+
+        const issues = data.issues_found || 0;
+        document.getElementById('summary').innerHTML = `
+          <div class="summary-item">审查 ID: <code>${data.review_id?.slice(0, 8)}</code></div>
+          <div class="summary-item">发现问题: <strong>${issues}</strong> 个</div>
+          <div class="summary-item">耗时: <strong>${data.duration || '-'}</strong>s</div>
+        `;
+
+        results.classList.add('show');
+        status.textContent = '审查完成';
+      } catch (e) {
+        showError(e.message);
+        status.textContent = '审查失败';
+      } finally {
+        btn.disabled = false;
+        loading.classList.remove('show');
+      }
+    }
+
+    function showError(msg) {
+      const box = document.getElementById('errorBox');
+      box.textContent = msg;
+      box.classList.add('show');
+    }
+  </script>
+</body>
+</html>
